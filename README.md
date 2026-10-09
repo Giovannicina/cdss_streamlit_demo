@@ -59,7 +59,7 @@ patient from `ehr.db`, and the user can change the blood pressure for the predic
 
 This matters for three reasons:
 
-- **Decision support works best when it fits into the clinician's workflow.** We don't want clinicians to re-type data that is already saved.
+- **Decision support works best when it fits into the clinician's workflow and avoids re-typing.** 
 - **Typing is error-prone.** 
 - **The data and the model are designed separately.** The database has its own column names,
   units and missing values. Getting from "database column" to "model input, in the right order and
@@ -183,20 +183,6 @@ Apps that nobody visits for a while go to sleep; the next visitor wakes them up.
 
 ---
 
-## When something goes wrong
-
-| What you see | What to do |
-|---|---|
-| `model.keras not found` | Save your model as `model.keras` in the same folder as `app.py` (and upload it, if the app is online). |
-| `model.keras exists but could not be loaded` | Save it with `model.save("model.keras")`. If it works on your computer but not online, see the last row. |
-| `Your model does not fit this app yet` | Read the message: it tells you which requirement (number of inputs, one output, values between 0 and 1) is not met. |
-| `ehr.db not found` or "no patients" | Run `python setup_database.py` and check `database.sql`. |
-| `ModuleNotFoundError: No module named 'streamlit'` (or `keras`) | Activate the virtual environment and run `pip install -r requirements.txt`. |
-| The model works on your computer but not online | Your computer and the cloud have different TensorFlow versions. Run `python -c "import tensorflow as tf; print(tf.__version__)"` where you trained the model, and pin that version in `requirements.txt`, e.g. `tensorflow==2.21.0`. |
-| Where are the error messages online? | Open your app and click **Manage app** (bottom right) to see the logs. |
-
----
-
 ## Part 2: build your own app to diagnose cancer
 
 Once the Pima app works and you understand what every file does, you will turn it into
@@ -221,7 +207,8 @@ in each one is part of the assignment.
 3. **`FEATURES` in `prediction.py`**: your feature names, the same as the database columns,
    **in the same order as during training**.
 4. **Preprocessing**: whatever you did to the inputs during training (scaling, encoding, filling in
-   missing values), the app must do in exactly the same way.
+   missing values), the app must do in exactly the same way: inside the model, or in the
+   `preprocess` function in `prediction.py`.
 5. **`app.py`**: the title and texts on the page, and how the result is shown: a probability, a label, or both?
 6. **Let the clinician edit any value.** In the Pima app the user can only change the blood pressure.
    In your app, the clinician must be able to change **any** of the patient's values before asking for a
@@ -249,3 +236,51 @@ The data are the Pima Indians Diabetes dataset
 ([Smith et al., 1988](https://pmc.ncbi.nlm.nih.gov/articles/PMC2245318/)).
 
 Like the original, this code is licensed under the GNU General Public License v3.0 (see `LICENSE`).
+
+---
+
+## Troubleshooting
+
+Find the stage where things go wrong, then the message you see.
+
+### Installing
+
+| What you see | What to do |
+|---|---|
+| `python: command not found` or `'python' is not recognized` | Use `python3` (macOS / Linux) or `py` (Windows). |
+| `No matching distribution found for tensorflow` | Your Python version is too new (or too old) for TensorFlow. Check with `python --version`. Install Python 3.12 and create the environment with it: `python3.12 -m venv .venv` (macOS / Linux) or `py -3.12 -m venv .venv` (Windows). |
+| Windows: `running scripts is disabled on this system` when activating | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in the same PowerShell window and activate again, or use Command Prompt instead. |
+| Windows: installing TensorFlow fails with an error about a file path or "No such file or directory" | Windows has a limit on path length. Move the project to a short path (e.g. `C:\ml\`) and start again, or [enable long paths](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation). |
+| `ModuleNotFoundError: No module named 'streamlit'` (or `keras`), or `'streamlit' is not recognized` | The virtual environment is not active. Activate it (step 2) and, if needed, run `pip install -r requirements.txt`. |
+
+### Running the app
+
+| What you see | What to do |
+|---|---|
+| Warnings about `missing ScriptRunContext`, and no app opens | You ran `python app.py`. Start the app with `streamlit run app.py`. |
+| Streamlit asks for your email address | Press Enter to skip. This only happens the first time. |
+| Many TensorFlow messages about CUDA, GPUs or oneDNN | Harmless on a normal laptop. Look for real errors in the app itself. |
+| `ehr.db not found` or "The database has no patients" | Run `python setup_database.py` and check `database.sql`. |
+| `Problem with the patient data: ... has no value for ...` | A value is empty (`NULL`) in `database.sql`. The model needs a number for every input. |
+| `Problem with the patient data: No value called ...` | A name in `FEATURES` doesn't match a column in the database. |
+| You replaced `model.keras` but the predictions didn't change | Refresh the page; the app reloads the model when the file changes. If that doesn't help, stop the app (`Ctrl+C`) and start it again. |
+
+### Your model
+
+| What you see | What to do |
+|---|---|
+| `model.keras not found` | Save your model as `model.keras` in the same folder as `app.py`. |
+| `TensorFlow is not installed in the Python environment that runs this app` | Activate the virtual environment and run `pip install -r requirements.txt`. |
+| `model.keras exists but could not be loaded` | Save it with `model.save("model.keras")`; don't rename a `.h5` file. Retrain with the TensorFlow version from `requirements.txt` (models from TensorFlow 2.15 or older may not load). If the error mentions a `Lambda` layer or `safe_mode`, do your scaling with a `Normalization` layer or in `preprocess` instead. |
+| `Your model does not fit this app yet` | Read the message: it says which requirement (number of inputs, one output, values between 0 and 1) is not met. |
+| The app runs, but the predictions look odd (the same for everyone, always close to 0 or 1) | Check the order of the inputs and the scaling: the app uses raw values in `FEATURES` order, plus whatever `preprocess` does. Compare with exactly what you did during training. |
+
+### Online (Streamlit Community Cloud)
+
+| What you see | What to do |
+|---|---|
+| Where are the error messages? | Open your app and click **Manage app** (bottom right) to see the logs. |
+| The app can't find `app.py` or other files | You probably uploaded the folder instead of its contents. Either set the main file path to `foldername/app.py`, or upload the files again at the top level. |
+| It works on your computer but not online | Your computer and the cloud have different TensorFlow versions. Run `python -c "import tensorflow as tf; print(tf.__version__)"` where you trained the model, and pin that version in `requirements.txt`, e.g. `tensorflow==2.21.0`. |
+| You uploaded a new `model.keras` but the app still uses the old one | Click **Manage app → Reboot app**. |
+| "This app has gone to sleep" | Click the button to wake it up; it takes a minute. |
