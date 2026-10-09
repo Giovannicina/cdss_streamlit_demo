@@ -13,6 +13,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+import numpy as np
 import streamlit as st
 
 import prediction
@@ -28,7 +29,8 @@ if not DB_FILE.exists():
     st.error("ehr.db not found. Run `python setup_database.py` first (see the README).")
     st.stop()
 if not prediction.MODEL_FILE.exists():
-    st.error("model.keras not found. Run `python train_model.py` first (see the README).")
+    st.error("model.keras not found. Train your model and save it as model.keras "
+             "in the same folder as app.py (see the README).")
     st.stop()
 
 
@@ -46,10 +48,23 @@ def load_patients():
     return {row["id"]: dict(row) for row in rows}
 
 
-model = get_model()
 patients = load_patients()
 if not patients:
     st.warning("The database has no patients. Check database.sql and run setup_database.py.")
+    st.stop()
+
+try:
+    model = get_model()
+except Exception as error:
+    st.error("model.keras exists but could not be loaded. Was it saved with "
+             "`model.save('model.keras')`, using the same TensorFlow version as in "
+             f"requirements.txt? (Error: {error})")
+    st.stop()
+
+problem = prediction.check_model(
+    model, np.vstack([prediction.make_input(p) for p in patients.values()]))
+if problem:
+    st.error("Your model does not fit this app yet. " + problem)
     st.stop()
 
 # The blood pressure typed in by the user. None = use the value from the database.
