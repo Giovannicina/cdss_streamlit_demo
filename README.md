@@ -173,6 +173,9 @@ You can host the app on [Streamlit Community Cloud](https://share.streamlit.io).
 1. Put the files in your own GitHub repository, **including your `model.keras`**.
    (On GitHub: **Add file → Upload files**, then drag in the files *inside* the folder,
    not the folder itself, so that `app.py` sits at the top level of the repository.)
+   Also upload the hidden file `.gitignore`: it stops your `.venv` folder from being added
+   if you later use git. To see hidden files, press `Cmd+Shift+.` in the macOS Finder, or
+   choose **View → Show → Hidden items** in Windows File Explorer.
 2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
 3. Click **Create app** → **Yup, I have an app**.
 4. Choose your repository, branch `main`, and main file `app.py`.
