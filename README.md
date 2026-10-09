@@ -59,14 +59,18 @@ patient from `ehr.db`, and the user can change the blood pressure for the predic
 
 This matters for three reasons:
 
-- **Decision support works best when it fits into the clinician's workflow.** We do not want clinicians to re-type data that is already available.
-- **Typing is error-prone.** 
+- **Decision support works best when it fits into the clinician's workflow.** A tool that makes
+  clinicians retype data that already exists elsewhere tends not to get used
+  ([Kawamoto et al., 2005](https://doi.org/10.1136/bmj.38398.500764.8F)).
+- **Typing is error-prone.** With 8 inputs it's tedious; with 30 it's impractical. A typo silently
+  becomes a wrong prediction.
 - **The data and the model are designed separately.** The database has its own column names,
   units and missing values. Getting from "database column" to "model input, in the right order and
   with the right preprocessing" is a real integration problem, and you will meet it in Part 2.
 
 `ehr.db` is a very small stand-in. A real EHR is a separate system that applications reach through
-a standard interface.
+a standard interface such as [HL7 FHIR](https://hl7.org/fhir/), and a real system would also record
+each prediction and who changed what.
 
 ---
 
@@ -83,10 +87,13 @@ You decide how to build and train it. To work in this app, your model must:
    diabetes pedigree function, age. This is the column order of the CSV, and the order
    of `FEATURES` in `prediction.py`.
 2. **Accept the raw values** as they are in the database (e.g. glucose = 148, age = 50).
-   If your model needs scaled inputs, put the scaling *inside* the model, or add it to `prediction.py`.
+   If your model needs scaled inputs, either put the scaling *inside* the model (use a Keras
+   `Normalization` layer, not a `Lambda` layer, which won't load), or do it in the
+   `preprocess` function in `prediction.py`.
 3. **Output one number between 0 and 1** for each patient: the model's estimate that the patient has diabetes.
 4. **Be a Keras model saved as `model.keras`**, with `model.save("model.keras")`,
-   and placed in the same folder as `app.py`.
+   and placed in the same folder as `app.py`. Don't rename a file saved in another format
+   (such as `model.h5`): it won't load.
 
 The app checks points 1 and 3 when it starts and tells you if something doesn't fit.
 It cannot check point 2 or the order in point 1, so double-check those yourself:
@@ -99,20 +106,38 @@ environment where you run the app (step 2 below) avoids version problems.
 
 ## Run it on your own computer
 
-You need **Python 3.10–3.13** (3.12 is a safe choice).
+You need **Python 3.10–3.13** (3.12 is a safe choice). TensorFlow does not support newer
+versions yet, so check with `python --version` first.
+
+> **`python`, `python3` or `py`?** The commands below use `python`. On macOS and Linux
+> you may need `python3` instead; on Windows, `py`. Once the virtual environment is
+> active (step 2), plain `python` works everywhere.
+
+If something doesn't work, look at [Troubleshooting](#troubleshooting) at the end of this README.
 
 **1. Get the code.** Click the green **Code** button on GitHub → **Download ZIP**, and unzip it.
 Open a terminal in that folder.
 
-**2. Install the packages** in a virtual environment (a private set of packages for this project):
+**2. Install the packages** in a virtual environment (a private set of packages for this project).
+
+On macOS / Linux:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # on Windows: .venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+On Windows (Command Prompt or PowerShell):
+
+```bash
+py -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
 This downloads TensorFlow, which is big, so it can take a few minutes.
+You need to activate the environment again (the second line) every time you open a new terminal.
 
 **3. (Optional) Rebuild the database.** `ehr.db` is already there. If you change `database.sql`, run:
 
@@ -138,6 +163,11 @@ streamlit run app.py
 
 Your browser opens the app at http://localhost:8501. Stop it with `Ctrl+C` in the terminal.
 
+Two things that look like problems but aren't:
+- The very first time, Streamlit asks for your email address in the terminal. Just press Enter.
+- TensorFlow prints many messages when it starts (about CUDA, GPUs or oneDNN).
+  On a normal laptop these are harmless.
+
 ---
 
 ## Put it online (free)
@@ -145,7 +175,8 @@ Your browser opens the app at http://localhost:8501. Stop it with `Ctrl+C` in th
 You can host the app on [Streamlit Community Cloud](https://share.streamlit.io).
 
 1. Put the files in your own GitHub repository, **including your `model.keras`**.
-   (On GitHub: **Add file → Upload files**, then drag the files in.)
+   (On GitHub: **Add file → Upload files**, then drag in the files *inside* the folder,
+   not the folder itself, so that `app.py` sits at the top level of the repository.)
 2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
 3. Click **Create app** → **Yup, I have an app**.
 4. Choose your repository, branch `main`, and main file `app.py`.
@@ -170,6 +201,22 @@ Apps that nobody visits for a while go to sleep; the next visitor wakes them up.
 
 ---
 
+## Things to think about (Pima app)
+
+- How did you measure your model's accuracy, and on which data? Why is accuracy on the training data too optimistic?
+  How accurate would a "model" be that always says "no diabetes"? (About 65% of patients in the data don't have diabetes.)
+- The five patients in `ehr.db` are copied from the Pima data. If your model was trained on them, what does that mean for the predictions you see?
+- In this dataset a value of 0 often means "not measured": almost half the patients have insulin = 0.
+  Susan Foreman's insulin is 0. Did you do anything about this when training? What does your model think that 0 means?
+- The prediction is a number between 0 and 1, not a yes/no. Where would you put the cut-off, and who should decide?
+  Does 0.70 really mean "a 70% chance"?
+- The form accepts blood pressures up to 400, but the highest diastolic blood pressure in the data is 122.
+  Try some extreme values. What happens, and should the app warn the user?
+- The data come from women aged 21 and older of Pima heritage
+  ([Smith et al., 1988](https://pmc.ncbi.nlm.nih.gov/articles/PMC2245318/)). Would you use this model for other patients?
+
+---
+
 ## Part 2: build your own app to diagnose cancer
 
 Once the Pima app works and you understand what every file does, you will turn it into
@@ -189,7 +236,7 @@ in each one is part of the assignment.
    not seen, and save it as `model.keras`. Decide which outcome is 1 (for example: 1 = malignant)
    and make sure the app says the same thing.
 2. **`database.sql`**: a `patient` table whose columns are your features, and a few patient records.
-   **Use made-up patients and not rows from your training data**, and never real data that could identify a person.
+   Use made-up patients or rows you held out from training, and never real data that could identify a person.
    Then run `python setup_database.py` again.
 3. **`FEATURES` in `prediction.py`**: your feature names, the same as the database columns,
    **in the same order as during training**.
@@ -212,6 +259,20 @@ in each one is part of the assignment.
 
 **Tip:** change one thing at a time and run the app after each step. The error messages tell you
 where it breaks. Test your app with a patient whose diagnosis you know.
+
+### Things to think about (your cancer app)
+
+- **Diagnosis or prediction?** The Pima study was about forecasting the *onset* of diabetes. Your app
+  is about a diagnosis *now*. Who uses the app, at which moment, and what do they do with the result?
+- **Which mistake is worse?** Telling a patient with cancer that they are fine, or the other way around?
+  Choose your cut-off with this in mind, and report sensitivity and specificity, not only accuracy.
+  If a missed cancer is 10 times worse than a false alarm, should the cut-off still be 0.5?
+- **Where do the inputs come from?** Who measures them, and can a clinician realistically type them in?
+  What should the app do with values outside the range seen in the training data?
+- **Can the result be trusted?** On which data did you evaluate your model? Does your dataset look like
+  the patients the app would be used on?
+- **What should the page show?** A bare number, a label, a warning? What would a clinician need to see
+  before acting on it?
 
 ---
 

@@ -35,8 +35,8 @@ if not prediction.MODEL_FILE.exists():
 
 
 # --- 2. Load the model (once) and the patients (on every run) ---------------
-@st.cache_resource  # load the model only once, not on every click
-def get_model():
+@st.cache_resource(max_entries=1)  # load the model only once, not on every click...
+def get_model(file_modified_time):  # ...but again whenever model.keras is replaced
     return prediction.load_model()
 
 
@@ -54,15 +54,25 @@ if not patients:
     st.stop()
 
 try:
-    model = get_model()
+    model = get_model(prediction.MODEL_FILE.stat().st_mtime)
+except ImportError as error:
+    st.error("TensorFlow is not installed in the Python environment that runs this app. "
+             "Activate your virtual environment and run `pip install -r requirements.txt`. "
+             f"(Error: {error})")
+    st.stop()
 except Exception as error:
     st.error("model.keras exists but could not be loaded. Was it saved with "
              "`model.save('model.keras')`, using the same TensorFlow version as in "
-             f"requirements.txt? (Error: {error})")
+             f"requirements.txt? See Troubleshooting in the README. (Error: {error})")
     st.stop()
 
-problem = prediction.check_model(
-    model, np.vstack([prediction.make_input(p) for p in patients.values()]))
+try:
+    all_inputs = np.vstack([prediction.make_input(p) for p in patients.values()])
+except ValueError as error:
+    st.error(f"Problem with the patient data: {error}")
+    st.stop()
+
+problem = prediction.check_model(model, all_inputs)
 if problem:
     st.error("Your model does not fit this app yet. " + problem)
     st.stop()
