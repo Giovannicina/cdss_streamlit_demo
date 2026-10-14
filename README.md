@@ -214,7 +214,7 @@ You can host the app on [Streamlit Community Cloud](https://share.streamlit.io).
 2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
 3. Click **Create app** → **Yup, I have an app**.
 4. Choose your repository, branch `main`, and main file `app.py`.
-5. Click **Advanced settings**, choose **Python 3.12**, and click **Save**.
+5. Click **Advanced settings**, choose **the same Python version as your environment**, and click **Save**.
 6. Click **Deploy**.
 
 The first start takes a few minutes, because TensorFlow has to be installed. You then get a web address like https://<your-app-name>.streamlit.app that works from any device. 
