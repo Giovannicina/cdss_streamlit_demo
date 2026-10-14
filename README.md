@@ -96,8 +96,7 @@ The app checks points 1 and 3 when it starts and tells you if something doesn't 
 It cannot check point 2 or the order in point 1, so double-check those yourself:
 **if the order or scaling is wrong, the app still shows a number, but it is the wrong number.**
 
-You can train wherever you like (a script, a notebook, Google Colab…). Training in the same
-environment where you run the app (step 2 below) avoids version problems.
+You can train wherever you like in your machine (a script, a notebook) but make sure you do not upload the IKNL data on the cloud. Training in the same environment where you run the app (step 2 below) avoids version problems.
 
 ---
 
