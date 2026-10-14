@@ -59,8 +59,9 @@ patient from `ehr.db`, and the user can change the blood pressure for the predic
 
 This matters for three reasons:
 
-- **Decision support works best when it fits into the clinician's workflow and avoids re-typing.** 
-- **Typing is error-prone.** 
+- **Decision support works best when it fits into the clinician's workflow.** A tool that makes
+  clinicians retype data that already exists elsewhere tends not to get used.
+- **Typing is error-prone.**
 - **The data and the model are designed separately.** The database has its own column names,
   units and missing values. Getting from "database column" to "model input, in the right order and
   with the right preprocessing" is a real integration problem, and you will meet it in Part 2.
@@ -100,6 +101,31 @@ environment where you run the app (step 2 below) avoids version problems.
 
 ---
 
+## Checklist: before you run the app
+
+Most problems come from using the wrong Python. Go through this list once you have downloaded
+the repo and have your `model.keras`. The detailed commands are in the next section.
+
+- [ ] **Python 3.10–3.13 is installed.** Check with `python --version` (or `python3` / `py`).
+  If your version is newer or older, install one in this range *next to* it; you don't need to remove the other.
+- [ ] **You made one environment for this project, with that Python.** Either a virtual environment
+  or a conda environment (see step 2 below). Using conda? If `(base)` is shown in your terminal,
+  plain `python` is conda's Python, not the one you just installed.
+- [ ] **Inside the activated environment, the version is right.** After activating it, `python --version`
+  must show 3.10–3.13. If not, delete the environment and create it again with the right Python.
+- [ ] **The packages are installed in that environment.** Run `pip install -r requirements.txt` with the
+  environment active. Check with `python -c "import tensorflow, streamlit; print('OK')"`.
+- [ ] **Your editor uses that environment.** If you work in an editor or IDE (VS Code, PyCharm,
+  Spyder, Jupyter…), select the environment's Python as its *interpreter* (or *kernel*). Editors
+  don't find environments you made in a terminal by themselves. To see the path to give it, run
+  `python -c "import sys; print(sys.executable)"` with the environment active. After changing it,
+  open a new terminal in the editor.
+- [ ] **`model.keras` is in the same folder as `app.py`.**
+- [ ] **You run the commands from the project folder**, with the environment active:
+  first `python prediction.py` (it should print a prediction between 0 and 1), then `streamlit run app.py`.
+
+---
+
 ## Run it on your own computer
 
 You need **Python 3.10–3.13** (3.12 is a safe choice). TensorFlow does not support newer
@@ -132,8 +158,18 @@ py -m venv .venv
 pip install -r requirements.txt
 ```
 
+If you use Anaconda or Miniconda, you can make a conda environment instead (any system):
+
+```bash
+conda create -n dss-demo python=3.12
+conda activate dss-demo
+pip install -r requirements.txt
+```
+
 This downloads TensorFlow, which is big, so it can take a few minutes.
 You need to activate the environment again (the second line) every time you open a new terminal.
+Check that `python --version` now shows 3.10–3.13, and if you use an editor,
+select this environment as its interpreter (see the [checklist](#checklist-before-you-run-the-app)).
 
 **3. (Optional) Rebuild the database.** `ehr.db` is already there. If you change `database.sql`, run:
 
@@ -186,6 +222,22 @@ Apps that nobody visits for a while go to sleep; the next visitor wakes them up.
 
 ---
 
+## Things to think about (Pima app)
+
+- How did you measure your model's accuracy, and on which data? Why is accuracy on the training data too optimistic?
+  How accurate would a "model" be that always says "no diabetes"? (About 65% of patients in the data don't have diabetes.)
+- The five patients in `ehr.db` are copied from the Pima data. If your model was trained on them, what does that mean for the predictions you see?
+- In this dataset a value of 0 often means "not measured": almost half the patients have insulin = 0.
+  Susan Foreman's insulin is 0. Did you do anything about this when training? What does your model think that 0 means?
+- The prediction is a number between 0 and 1, not a yes/no. Where would you put the cut-off, and who should decide?
+  Does 0.70 really mean "a 70% chance"?
+- The form accepts blood pressures up to 400, but the highest diastolic blood pressure in the data is 122.
+  Try some extreme values. What happens, and should the app warn the user?
+- The data come from women aged 21 and older of Pima heritage
+  ([Smith et al., 1988](https://pmc.ncbi.nlm.nih.gov/articles/PMC2245318/)). Would you use this model for other patients?
+
+---
+
 ## Part 2: build your own app to diagnose cancer
 
 Once the Pima app works and you understand what every file does, you will turn it into
@@ -230,6 +282,20 @@ in each one is part of the assignment.
 **Tip:** change one thing at a time and run the app after each step. The error messages tell you
 where it breaks. Test your app with a patient whose diagnosis you know.
 
+### Things to think about (your cancer app)
+
+- **Diagnosis or prediction?** The Pima study was about forecasting the *onset* of diabetes. Your app
+  is about a diagnosis *now*. Who uses the app, at which moment, and what do they do with the result?
+- **Which mistake is worse?** Telling a patient with cancer that they are fine, or the other way around?
+  Choose your cut-off with this in mind, and report sensitivity and specificity, not only accuracy.
+  If a missed cancer is 10 times worse than a false alarm, should the cut-off still be 0.5?
+- **Where do the inputs come from?** Who measures them, and can a clinician realistically type them in?
+  What should the app do with values outside the range seen in the training data?
+- **Can the result be trusted?** On which data did you evaluate your model? Does your dataset look like
+  the patients the app would be used on?
+- **What should the page show?** A bare number, a label, a warning? What would a clinician need to see
+  before acting on it?
+
 ---
 
 ## Credits and license
@@ -255,6 +321,8 @@ Find the stage where things go wrong, then the message you see.
 | Windows: `running scripts is disabled on this system` when activating | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in the same PowerShell window and activate again, or use Command Prompt instead. |
 | Windows: installing TensorFlow fails with an error about a file path or "No such file or directory" | Windows has a limit on path length. Move the project to a short path (e.g. `C:\ml\`) and start again, or [enable long paths](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation). |
 | `ModuleNotFoundError: No module named 'streamlit'` (or `keras`), or `'streamlit' is not recognized` | The virtual environment is not active. Activate it (step 2) and, if needed, run `pip install -r requirements.txt`. |
+| `python --version` shows the wrong version *inside* the environment | The environment was made with a different Python (e.g. conda's). Delete it and create it again with Python 3.10–3.13, e.g. `python3.12 -m venv .venv` or `conda create -n dss-demo python=3.12`. |
+| Your editor says "no interpreter", or uses a different Python than your terminal | Select the environment's Python as the editor's interpreter; see the [checklist](#checklist-before-you-run-the-app). Then open a new terminal in the editor. |
 
 ### Running the app
 
