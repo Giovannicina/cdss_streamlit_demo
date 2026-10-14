@@ -215,9 +215,15 @@ You can host the app on [Streamlit Community Cloud](https://share.streamlit.io).
 3. Click **Create app** → **Yup, I have an app**.
 4. Choose your repository, branch `main`, and main file `app.py`.
 5. Click **Advanced settings**, choose **Python 3.12**, and click **Save**.
+6. Click **Deploy**.
 
-The first start takes a few minutes, because TensorFlow has to be installed.
-Apps that nobody visits for a while go to sleep; the next visitor wakes them up.
+The first start takes a few minutes, because TensorFlow has to be installed. You then get a web address like https://<your-app-name>.streamlit.app that works from any device. 
+Good to know:
+
+- Who can use it: an app from a public GitHub repository is public: anyone with the link can use it. An app from a private repository is private; under Settings → Sharing you can invite specific people by email (you can have one private app at a time). Never put real patient data in the app.
+- Several users at once: each visitor gets their own session, so one person's choices don't affect another's.
+- Updates: when you change files in your GitHub repository, the app updates automatically. After replacing model.keras, click Manage app → Reboot app to be sure the new model is used.
+- Sleep: apps that nobody visits for 12 hours go to sleep; the next visitor wakes them up (this takes about a minute).
 
 ---
 
